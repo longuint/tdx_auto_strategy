@@ -117,6 +117,8 @@ local function JoinLobby(lobbyNumber, apcNumber)
     module.inLobbyElevator = true
 end
 
+module.elevatorText = ""
+
 function module:SearchForGame(mapName, callback)
     local Lobbies = Workspace['APCs']:GetChildren()
     local Lobbies2 = Workspace['APCs2']:GetChildren()
@@ -126,18 +128,43 @@ function module:SearchForGame(mapName, callback)
             local LobbyScreen =
                 lobby['mapdisplay']:WaitForChild('screen')['displayscreen']
             local Map = LobbyScreen['map'].Text
-            if Map == mapName then JoinLobby(lobby.Name, "") end
+            if Map == mapName and not module:IsThereMoreThanOnePlayerInLobby(
+                lobby['mapdisplay']:WaitForChild('screen')['displayscreen']['plrcount']
+                    .Text) then JoinLobby(lobby.Name, "") end
+
+            lobby['mapdisplay']:WaitForChild('screen')['displayscreen']['plrcount']:GetPropertyChangedSignal(
+                'Text'):Connect(function()
+                if module:IsThereMoreThanOnePlayerInLobby(
+                    lobby['mapdisplay']:WaitForChild('screen')['displayscreen']['plrcount']
+                        .Text) then module:LeaveLobby() end
+            end)
         end
 
         for i, lobby in pairs(Lobbies2) do
             local LobbyScreen =
                 lobby['mapdisplay']:WaitForChild('screen')['displayscreen']
             local Map = LobbyScreen['map'].Text
-            if Map == mapName then JoinLobby(lobby.Name, 2) end
+
+            module.elevatorText =
+                lobby['mapdisplay']:WaitForChild('screen')['displayscreen']['plrcount']
+                    .Text
+
+            if Map == mapName and not module:IsThereMoreThanOnePlayerInLobby(
+                lobby['mapdisplay']:WaitForChild('screen')['displayscreen']['plrcount']
+                    .Text) then JoinLobby(lobby.Name, 2) end
+
+            lobby['mapdisplay']:WaitForChild('screen')['displayscreen']['plrcount']:GetPropertyChangedSignal(
+                'Text'):Connect(function()
+                if module:IsThereMoreThanOnePlayerInLobby(
+                    lobby['mapdisplay']:WaitForChild('screen')['displayscreen']['plrcount']
+                        .Text) then module:LeaveLobby() end
+            end)
         end
         task.wait(5)
     until module.inLobbyElevator
+
     callback()
+
 end
 
 function module:Game(action) action() end
@@ -152,6 +179,13 @@ end
 
 function module:RequestTeleportToLobby()
     remotes:WaitForChild('RequestTeleportToLobby'):FireServer()
+end
+
+function module:LeaveLobby() remotes.Network.LeaveQueue:FireServer() end
+
+function module:IsThereMoreThanOnePlayerInLobby(lobbyText)
+    local text = lobbyText:gsub("[/4]", "")
+    return tonumber(text) > 1
 end
 
 function module:InLobby() return game.PlaceId == 11739766412 end
@@ -357,7 +391,6 @@ else
     module:ToggleSpeedBoost()
 
     for i, v in pairs(actions) do
-
         Banner.UIStroke.Color = Color3.fromHex('#FF8E2C')
         Banner.Frame.TextLabel.Text = '<i>InstructionAction</i>: ' .. i - 1
         module:WaitForWaveEquals(i, function() module:Game(v) end)
